@@ -11,6 +11,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/plants")
@@ -23,6 +24,21 @@ public class PlantController {
     public PlantController(PlantService plantService, UserService userService) {
         this.plantService = plantService;
         this.userService = userService;
+    }
+
+    @GetMapping
+    public ResponseEntity<?> listUserPlants(@AuthenticationPrincipal User user) {
+        List<Plant> plants = plantService.getUserPlants(user.getId());
+        return ResponseEntity.ok(plants);
+    }
+
+    @DeleteMapping("/{plantId}")
+    public ResponseEntity<?> deletePlant(@AuthenticationPrincipal User user, @PathVariable UUID plantId) {
+        if (!plantService.doesUserOwnPlant(user.getId(), plantId)) {
+            return ResponseEntity.status(403).body("Access denied");
+        }
+        plantService.deletePlant(plantId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping

@@ -1,9 +1,7 @@
 package com.agriculture.controller;
 
-import com.agriculture.dto.AuthRequest;
-import com.agriculture.dto.AuthResponse;
+import com.agriculture.dto.*;
 import com.agriculture.models.User;
-
 import com.agriculture.services.JwtService;
 import com.agriculture.services.UserService;
 import jakarta.validation.Valid;
@@ -26,7 +24,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody AuthRequest request) {
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         try {
             User user = userService.registerUser(
                     request.getEmail(),
@@ -55,7 +53,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         Optional<User> userOpt = userService.findByEmail(request.getEmail());
 
         if (userOpt.isEmpty() || !userService.validatePassword(request.getPassword(), userOpt.get().getPassword())) {
@@ -75,5 +73,26 @@ public class AuthController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/password/reset-request")
+    public ResponseEntity<?> resetRequest(@Valid @RequestBody PasswordResetRequest request) {
+        try {
+            String token = userService.createPasswordResetToken(request.getEmail());
+            // На MVP возвращаем токен напрямую. В бою — отправить по почте.
+            return ResponseEntity.ok(token);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/password/reset-confirm")
+    public ResponseEntity<?> resetConfirm(@Valid @RequestBody PasswordResetConfirmRequest request) {
+        try {
+            userService.resetPassword(request.getToken(), request.getNewPassword());
+            return ResponseEntity.ok("Password updated");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }

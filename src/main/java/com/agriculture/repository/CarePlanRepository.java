@@ -9,10 +9,21 @@ import java.util.UUID;
 
 public interface CarePlanRepository extends JpaRepository<CarePlan, UUID> {
 
-    Optional<CarePlan> findByInputHash(String inputHash);
+    @Query(value = "SELECT * FROM care_plans WHERE " +
+           "input_parameters->>'culture' = :culture AND " +
+           "input_parameters->>'region' = :region AND " +
+           "input_parameters->>'garden_type' = :gardenType", 
+           nativeQuery = true)
+    Optional<CarePlan> findByInputParameters(@Param("culture") String culture, 
+                                           @Param("region") String region, 
+                                           @Param("gardenType") String gardenType);
 
-    @Query("SELECT cp FROM CarePlan cp WHERE cp.inputHash = :hash")
-    Optional<CarePlan> findByHash(@Param("hash") String hash);
-
-    boolean existsByInputHash(String inputHash);
+    @Query(value = "SELECT COUNT(*) > 0 FROM care_plans WHERE " +
+           "input_parameters->>'culture' = :culture AND " +
+           "input_parameters->>'region' = :region AND " +
+           "input_parameters->>'garden_type' = :gardenType", 
+           nativeQuery = true)
+    boolean existsByInputParameters(@Param("culture") String culture, 
+                                  @Param("region") String region, 
+                                  @Param("gardenType") String gardenType);
 }

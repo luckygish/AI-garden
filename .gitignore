@@ -40,3 +40,101 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Spring Boot ###
+*.jar
+*.war
+*.ear
+*.class
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+### Environment Variables ###
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+### API Keys and Secrets ###
+application-local.properties
+application-dev.properties
+application-prod.properties
+secrets.properties
+api-keys.properties
+
+### Database ###
+*.db
+*.sqlite
+*.sqlite3
+h2/
+
+### Logs ###
+logs/
+*.log
+*.log.*
+
+### IDE Specific ###
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+
+### OS Generated Files ###
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+### Temporary Files ###
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+
+### Node.js (if using frontend tools) ###
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+### Python (if using scripts) ###
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+### JVM Crash Logs ###
+hs_err_pid*
+
+### Maven ###
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+### Gradle ###
+.gradle/
+build/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties

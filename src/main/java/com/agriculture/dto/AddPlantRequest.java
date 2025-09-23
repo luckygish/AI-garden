@@ -1,12 +1,22 @@
 package com.agriculture.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 
 public class AddPlantRequest {
+    @NotBlank(message = "Культура не может быть пустой")
     private String culture;
+    
+    @NotBlank(message = "Название растения не может быть пустым")
     private String name;
+    
     private String variety;
+    
+    @NotNull(message = "Дата посадки обязательна")
     private LocalDate plantingDate;
+    
+    @NotBlank(message = "Стадия роста не может быть пустой")
     private String growthStage;
 
     public AddPlantRequest() {}

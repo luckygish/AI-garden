@@ -23,6 +23,7 @@ public class Plant {
 
     private String name;
     private String variety;
+    private String culture; // Каноническое название культуры для поиска планов
 
     @Column(name = "planting_date")
     private LocalDate plantingDate;
@@ -53,4 +54,7 @@ public class Plant {
 
     public String getGrowthStage() { return growthStage; }
     public void setGrowthStage(String growthStage) { this.growthStage = growthStage; }
+
+    public String getCulture() { return culture; }
+    public void setCulture(String culture) { this.culture = culture; }
 }
