@@ -18,6 +18,9 @@ public interface CarePlanRepository extends JpaRepository<CarePlan, UUID> {
                                            @Param("region") String region, 
                                            @Param("gardenType") String gardenType);
 
+    @Query(value = "SELECT * FROM care_plans", nativeQuery = true)
+    java.util.List<CarePlan> findAllPlans();
+
     @Query(value = "SELECT COUNT(*) > 0 FROM care_plans WHERE " +
            "input_parameters->>'culture' = :culture AND " +
            "input_parameters->>'region' = :region AND " +

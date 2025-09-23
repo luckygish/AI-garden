@@ -1,5 +1,6 @@
 package com.agriculture.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.util.UUID;
 
@@ -15,6 +16,7 @@ public class CarePlan {
     private String inputParameters;
 
     @Column(name = "ai_generated_plan", columnDefinition = "JSONB")
+    @JsonIgnore
     private String aiGeneratedPlan;
 
     public CarePlan() {}

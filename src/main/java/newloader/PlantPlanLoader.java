@@ -18,7 +18,7 @@ import java.io.File;
 public class PlantPlanLoader {
 //    private static final String JSON_PATH = "/absolute/path/to/your/json/files/";
     // ИЛИ для одного файла:
-     private static final String JSON_PATH = "C:\\Users\\dmitr\\IdeaProjects\\agriculture-importer\\src\\main\\resources\\cucumber_MO.json";
+     private static final String JSON_PATH = "C:\\Users\\dmitr\\IdeaProjects\\agriculture-importer\\src\\main\\resources\\Berry.json";
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private final Connection connection;
 

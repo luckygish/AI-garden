@@ -74,6 +74,24 @@ public class CarePlanController {
         stats.put("deepSeekAvailable", carePlanService.isDeepSeekAvailable());
         return ResponseEntity.ok(stats);
     }
+
+    /**
+     * Получает все планы ухода (для отладки)
+     */
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllPlans() {
+        return ResponseEntity.ok(carePlanService.getAllPlans());
+    }
+
+    /**
+     * Отладочный endpoint для проверки SQL запроса
+     */
+    @GetMapping("/debug-query")
+    public ResponseEntity<?> debugQuery(@RequestParam String culture,
+                                       @RequestParam String region,
+                                       @RequestParam String gardenType) {
+        return ResponseEntity.ok(carePlanService.debugQuery(culture, region, gardenType));
+    }
 }
 
 

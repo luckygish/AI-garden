@@ -9,6 +9,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -117,6 +120,35 @@ public class CarePlanService {
      */
     public boolean planExists(String culture, String region, String gardenType) {
         return existsByParams(culture, region, gardenType);
+    }
+
+    /**
+     * Получает все планы ухода (для отладки)
+     */
+    public List<CarePlan> getAllPlans() {
+        return carePlanRepository.findAll();
+    }
+
+    /**
+     * Отладочный метод для проверки SQL запроса
+     */
+    public Map<String, Object> debugQuery(String culture, String region, String gardenType) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("inputParams", Map.of(
+            "culture", culture,
+            "region", region,
+            "gardenType", gardenType
+        ));
+        
+        // Показываем все планы в БД
+        List<CarePlan> allPlans = carePlanRepository.findAll();
+        result.put("allPlans", allPlans);
+        
+        // Пытаемся найти план
+        Optional<CarePlan> foundPlan = carePlanRepository.findByInputParameters(culture, region, gardenType);
+        result.put("foundPlan", foundPlan.orElse(null));
+        
+        return result;
     }
 }
 
