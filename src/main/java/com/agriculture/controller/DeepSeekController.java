@@ -34,7 +34,29 @@ public class DeepSeekController {
     }
 
     /**
-     * Тестирует запрос к DeepSeek API
+     * Простой тест DeepSeek API с минимальным промтом
+     */
+    @PostMapping("/simple-test")
+    public ResponseEntity<?> simpleTest() {
+        try {
+            if (!deepSeekService.isApiAvailable()) {
+                return ResponseEntity.badRequest().body("DeepSeek API не настроен");
+            }
+
+            // Простой тестовый запрос
+            JsonNode result = deepSeekService.requestCarePlan("Томат", "Московская область", "открытый грунт");
+            return ResponseEntity.ok(result);
+            
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Ошибка при тестировании DeepSeek API: " + e.getMessage());
+            error.put("type", e.getClass().getSimpleName());
+            return ResponseEntity.status(500).body(error);
+        }
+    }
+
+    /**
+     * Тестирует запрос к DeepSeek API с параметрами
      */
     @PostMapping("/test")
     public ResponseEntity<?> testApi(
@@ -53,6 +75,7 @@ public class DeepSeekController {
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
             error.put("error", "Ошибка при тестировании DeepSeek API: " + e.getMessage());
+            error.put("type", e.getClass().getSimpleName());
             return ResponseEntity.status(500).body(error);
         }
     }

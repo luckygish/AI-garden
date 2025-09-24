@@ -32,8 +32,11 @@ public class DeepSeekService {
     @Value("${deepseek.api.max-retries:3}")
     private int maxRetries;
 
-    @Value("${deepseek.api.retry-delay:1000}")
+    @Value("${deepseek.api.retry-delay:3000}")
     private int retryDelay;
+
+    @Value("${deepseek.api.max-tokens:8192}")
+    private int maxTokens;
 
     private RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
@@ -54,12 +57,15 @@ public class DeepSeekService {
     }
 
     /**
-     * Запрашивает план ухода у DeepSeek API с retry логикой
+     * Запрашивает план ухода у DeepSeek API с улучшенной retry логикой
      */
     public JsonNode requestCarePlan(String culture, String region, String gardenType) {
         System.out.println("🌱 Запрос плана ухода для: " + culture + " в регионе " + region + " (" + gardenType + ")");
+        System.out.println("⚙️ Настройки: таймаут=" + timeout + "мс, попыток=" + maxRetries + ", задержка=" + retryDelay + "мс");
         
         String prompt = buildPrompt(culture, region, gardenType);
+        
+        Exception lastException = null;
         
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             long startTime = System.currentTimeMillis();
@@ -71,19 +77,29 @@ public class DeepSeekService {
                 long duration = System.currentTimeMillis() - startTime;
                 System.out.println("✅ Получен ответ от DeepSeek API за " + duration + "мс");
                 
-                return parseResponse(response);
+                JsonNode result = parseResponse(response);
+                System.out.println("🎉 Успешно получен план ухода!");
+                return result;
+                
             } catch (Exception e) {
                 long duration = System.currentTimeMillis() - startTime;
-                System.err.println("❌ Попытка " + attempt + " неудачна за " + duration + "мс: " + e.getMessage());
+                lastException = e;
                 
+                System.err.println("❌ Попытка " + attempt + " неудачна за " + duration + "мс");
+                System.err.println("💥 Ошибка: " + e.getMessage());
+                
+                // Если это последняя попытка, выбрасываем исключение
                 if (attempt == maxRetries) {
-                    throw new RuntimeException("Ошибка при запросе к DeepSeek API после " + maxRetries + " попыток: " + e.getMessage(), e);
+                    System.err.println("🚫 Исчерпаны все попытки (" + maxRetries + ")");
+                    break;
                 }
                 
-                // Логируем попытку и ждем перед повтором
-                System.out.println("⏳ Ожидание " + retryDelay + "мс перед следующей попыткой...");
+                // Увеличиваем задержку с каждой попыткой (exponential backoff)
+                int currentDelay = retryDelay * attempt;
+                System.out.println("⏳ Ожидание " + currentDelay + "мс перед следующей попыткой...");
+                
                 try {
-                    Thread.sleep(retryDelay);
+                    Thread.sleep(currentDelay);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     throw new RuntimeException("Прервано ожидание между попытками", ie);
@@ -91,7 +107,9 @@ public class DeepSeekService {
             }
         }
         
-        throw new RuntimeException("Неожиданная ошибка в retry логике");
+        // Если дошли до сюда, значит все попытки неудачны
+        throw new RuntimeException("Ошибка при запросе к DeepSeek API после " + maxRetries + " попыток. " +
+            "Последняя ошибка: " + (lastException != null ? lastException.getMessage() : "Неизвестная ошибка"), lastException);
     }
 
     /**
@@ -144,15 +162,14 @@ public class DeepSeekService {
                         }
                       ]
                     }
-                  ],
-                  "source": "источник (название, автор, страница)"
+                  ]
                 }
               ]
             }
             
             ТРЕБОВАНИЯ:
             - Для каждого типа операции предоставляй не менее двух различных материалов в массиве "materials"
-            - Для каждого основного материала указывай не менее двух альтернативных вариантов в массиве "alternatives"
+            - Для каждого основного материала указывай не менее одного альтернативного варианта в массиве "alternatives"
             - Для каждого альтернативного материала добавляй поле "warning" с предупреждениями
             - Для каждой операции указывай рекомендуемый временной период (месяц, декада)
             - Предоставляй альтернативные материалы (органические вместо минеральных и т.д.)
@@ -163,7 +180,6 @@ public class DeepSeekService {
             - Источники должны быть приоритетно на русском языке и актуальны для территории Российской Федерации
             - В ответе не должно быть общих сайтов (Wikipedia) или форумов без конкретных авторитетных авторов
             - Используй только книги, официальные документы, научные статьи, методички, регламенты
-            - Указывай точные названия источников с авторами и страницами
             - Добавляй предупреждения о возможных проблемах и ограничениях для каждого материала
             
             Начинай анализ.
@@ -171,7 +187,7 @@ public class DeepSeekService {
     }
 
     /**
-     * Отправляет запрос к DeepSeek API
+     * Отправляет запрос к DeepSeek API с улучшенной обработкой ошибок
      */
     private String sendRequest(String prompt) {
         if (apiKey == null || apiKey.trim().isEmpty()) {
@@ -180,12 +196,14 @@ public class DeepSeekService {
 
         System.out.println("🔑 API ключ настроен, отправляем запрос к: " + apiUrl);
         System.out.println("📝 Длина промта: " + prompt.length() + " символов");
+        System.out.println("⏱️ Таймаут: " + timeout + "мс, Максимум токенов: " + maxTokens);
 
         try {
             // Подготавливаем заголовки
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("Authorization", "Bearer " + apiKey);
+            headers.set("User-Agent", "Agriculture-App/1.0");
 
             // Подготавливаем тело запроса
             Map<String, Object> requestBody = new HashMap<>();
@@ -194,12 +212,15 @@ public class DeepSeekService {
                 Map.of("role", "user", "content", prompt)
             });
             requestBody.put("temperature", 0.1);
-            requestBody.put("max_tokens", 4000);
+            requestBody.put("max_tokens", maxTokens);
+            requestBody.put("stream", false); // Отключаем стриминг для стабильности
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
             // Отправляем запрос
             System.out.println("🚀 Отправляем HTTP POST запрос...");
+            long startTime = System.currentTimeMillis();
+            
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 apiUrl,
                 HttpMethod.POST,
@@ -207,10 +228,14 @@ public class DeepSeekService {
                 new ParameterizedTypeReference<Map<String, Object>>() {}
             );
             
-            System.out.println("📡 Получен HTTP ответ: " + response.getStatusCode());
+            long duration = System.currentTimeMillis() - startTime;
+            System.out.println("📡 Получен HTTP ответ: " + response.getStatusCode() + " за " + duration + "мс");
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 Map<String, Object> responseBody = response.getBody();
+                
+                // Логируем структуру ответа для отладки
+                System.out.println("📋 Ключи в ответе: " + responseBody.keySet());
                 
                 // Извлекаем содержимое ответа
                 if (responseBody.containsKey("choices") && 
@@ -222,44 +247,88 @@ public class DeepSeekService {
                         if (choice.containsKey("message") && choice.get("message") instanceof Map) {
                             Map<String, Object> message = (Map<String, Object>) choice.get("message");
                             if (message.containsKey("content")) {
-                                return message.get("content").toString();
+                                String content = message.get("content").toString();
+                                System.out.println("✅ Получен контент длиной: " + content.length() + " символов");
+                                return content;
                             }
                         }
                     }
                 }
                 
+                // Если не удалось извлечь контент, логируем весь ответ
+                System.out.println("❌ Неожиданная структура ответа: " + objectMapper.writeValueAsString(responseBody));
                 throw new RuntimeException("Неожиданный формат ответа от DeepSeek API");
             } else {
+                System.out.println("❌ Ошибка HTTP: " + response.getStatusCode());
                 throw new RuntimeException("Ошибка API: " + response.getStatusCode());
             }
 
         } catch (HttpClientErrorException e) {
-            throw new RuntimeException("Ошибка HTTP запроса к DeepSeek API: " + e.getMessage(), e);
+            System.err.println("❌ HTTP ошибка: " + e.getStatusCode() + " - " + e.getResponseBodyAsString());
+            throw new RuntimeException("Ошибка HTTP запроса к DeepSeek API: " + e.getMessage() + 
+                " (Статус: " + e.getStatusCode() + ")", e);
         } catch (ResourceAccessException e) {
+            System.err.println("❌ Ошибка подключения: " + e.getMessage());
             throw new RuntimeException("Ошибка подключения к DeepSeek API: " + e.getMessage(), e);
         } catch (Exception e) {
+            System.err.println("❌ Неожиданная ошибка: " + e.getMessage());
             throw new RuntimeException("Неожиданная ошибка при запросе к DeepSeek API: " + e.getMessage(), e);
         }
     }
 
     /**
-     * Парсит ответ от DeepSeek API в JsonNode
+     * Парсит ответ от DeepSeek API в JsonNode с улучшенной обработкой
      */
     private JsonNode parseResponse(String response) {
         try {
+            System.out.println("🔍 Начинаем парсинг ответа...");
+            System.out.println("📄 Первые 200 символов ответа: " + response.substring(0, Math.min(200, response.length())));
+            
             // Очищаем ответ от возможных markdown блоков
             String cleanedResponse = response.trim();
+            
+            // Удаляем markdown блоки
             if (cleanedResponse.startsWith("```json")) {
                 cleanedResponse = cleanedResponse.substring(7);
+                System.out.println("🧹 Удален открывающий ```json");
+            }
+            if (cleanedResponse.startsWith("```")) {
+                cleanedResponse = cleanedResponse.substring(3);
+                System.out.println("🧹 Удален открывающий ```");
             }
             if (cleanedResponse.endsWith("```")) {
                 cleanedResponse = cleanedResponse.substring(0, cleanedResponse.length() - 3);
+                System.out.println("🧹 Удален закрывающий ```");
             }
+            
             cleanedResponse = cleanedResponse.trim();
-
-            return objectMapper.readTree(cleanedResponse);
+            
+            // Проверяем что у нас есть валидный JSON
+            if (cleanedResponse.isEmpty()) {
+                throw new RuntimeException("Пустой ответ от DeepSeek API");
+            }
+            
+            if (!cleanedResponse.startsWith("{") && !cleanedResponse.startsWith("[")) {
+                System.out.println("⚠️ Ответ не начинается с { или [, возможно это не JSON");
+                // Попробуем найти JSON в тексте
+                int jsonStart = cleanedResponse.indexOf("{");
+                if (jsonStart != -1) {
+                    cleanedResponse = cleanedResponse.substring(jsonStart);
+                    System.out.println("🔍 Найден JSON начиная с позиции: " + jsonStart);
+                }
+            }
+            
+            System.out.println("📝 Очищенный ответ длиной: " + cleanedResponse.length() + " символов");
+            
+            JsonNode result = objectMapper.readTree(cleanedResponse);
+            System.out.println("✅ JSON успешно распарсен");
+            return result;
+            
         } catch (Exception e) {
-            throw new RuntimeException("Ошибка парсинга JSON ответа от DeepSeek: " + e.getMessage(), e);
+            System.err.println("❌ Ошибка парсинга JSON: " + e.getMessage());
+            System.err.println("📄 Проблемный ответ: " + response);
+            throw new RuntimeException("Ошибка парсинга JSON ответа от DeepSeek: " + e.getMessage() + 
+                "\nОтвет: " + response.substring(0, Math.min(500, response.length())), e);
         }
     }
 

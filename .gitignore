@@ -59,6 +59,7 @@ bin/
 .env.development
 .env.production
 .env.test
+config.env
 
 ### API Keys and Secrets ###
 application-local.properties

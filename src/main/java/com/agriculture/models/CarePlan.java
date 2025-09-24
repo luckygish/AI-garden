@@ -2,6 +2,8 @@ package com.agriculture.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.util.UUID;
 
 @Entity
@@ -12,10 +14,12 @@ public class CarePlan {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "input_parameters", columnDefinition = "JSONB")
+    @Column(name = "input_parameters", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String inputParameters;
 
-    @Column(name = "ai_generated_plan", columnDefinition = "JSONB")
+    @Column(name = "ai_generated_plan", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     @JsonIgnore
     private String aiGeneratedPlan;
 
