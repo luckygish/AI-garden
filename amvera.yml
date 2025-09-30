@@ -1,0 +1,35 @@
+meta:
+  environment: java
+  toolchain:
+    name: gradle
+    version: "8.0"
+
+build:
+  buildCommand: "./gradlew build -x test"
+  buildPath: "build/libs"
+
+run:
+  command: "java"
+  args: ["-jar", "agriculture-importer-1.0.0.jar"]
+  containerPort: 8080
+
+# Переменные окружения для продакшена
+env:
+  SPRING_PROFILES_ACTIVE: "production"
+  SERVER_PORT: "8080"
+  SPRING_DATASOURCE_URL: "${DATABASE_URL}"
+  SPRING_DATASOURCE_USERNAME: "${DATABASE_USERNAME}"
+  SPRING_DATASOURCE_PASSWORD: "${DATABASE_PASSWORD}"
+  DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY}"
+  JWT_SECRET: "${JWT_SECRET}"
+  JWT_EXPIRATION_MS: "${JWT_EXPIRATION_MS:3600000}"
+
+# Настройки для базы данных
+database:
+  type: "postgresql"
+  version: "15"
+
+# Настройки для мониторинга
+monitoring:
+  healthCheckPath: "/actuator/health"
+  metricsPath: "/actuator/metrics"
