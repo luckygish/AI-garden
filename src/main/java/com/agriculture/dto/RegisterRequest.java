@@ -2,6 +2,7 @@ package com.agriculture.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class RegisterRequest {
@@ -11,7 +12,11 @@ public class RegisterRequest {
     private String email;
 
     @NotBlank
-    @Size(min = 6, max = 6)
+    @Size(min = 8, max = 12, message = "Пароль должен содержать от 8 до 12 символов")
+    @Pattern(
+        regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).+$",
+        message = "Пароль должен содержать хотя бы одну заглавную букву, одну строчную букву и одну цифру"
+    )
     private String password;
 
     @NotBlank
