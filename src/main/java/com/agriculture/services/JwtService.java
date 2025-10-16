@@ -49,12 +49,35 @@ public class JwtService {
     }
 
     public String getEmailFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setAllowedClockSkewSeconds(60)
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        return claims.getSubject();
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setAllowedClockSkewSeconds(60)
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.getSubject();
+        } catch (ExpiredJwtException e) {
+            throw new RuntimeException("Token expired");
+        } catch (Exception e) {
+            throw new RuntimeException("Invalid token");
+        }
+    }
+
+    public UUID getUserIdFromToken(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setAllowedClockSkewSeconds(60)
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            String userIdStr = claims.get("userId", String.class);
+            return UUID.fromString(userIdStr);
+        } catch (ExpiredJwtException e) {
+            throw new RuntimeException("Token expired");
+        } catch (Exception e) {
+            throw new RuntimeException("Invalid token");
+        }
     }
 }

@@ -28,12 +28,18 @@ public class PlantController {
 
     @GetMapping
     public ResponseEntity<?> listUserPlants(@AuthenticationPrincipal User user) {
+        if (user == null) {
+            return ResponseEntity.status(401).body("User not authenticated");
+        }
         List<Plant> plants = plantService.getUserPlants(user.getId());
         return ResponseEntity.ok(plants);
     }
 
     @DeleteMapping("/{plantId}")
     public ResponseEntity<?> deletePlant(@AuthenticationPrincipal User user, @PathVariable UUID plantId) {
+        if (user == null) {
+            return ResponseEntity.status(401).body("User not authenticated");
+        }
         if (!plantService.doesUserOwnPlant(user.getId(), plantId)) {
             return ResponseEntity.status(403).body("Access denied");
         }
@@ -45,6 +51,10 @@ public class PlantController {
     public ResponseEntity<?> addPlant(
             @AuthenticationPrincipal User user,
             @Valid @RequestBody AddPlantRequest request) {
+
+        if (user == null) {
+            return ResponseEntity.status(401).body("User not authenticated");
+        }
 
         try {
             Plant plant = plantService.addPlant(
@@ -69,6 +79,10 @@ public class PlantController {
     public ResponseEntity<?> getCarePlan(
             @AuthenticationPrincipal User user,
             @PathVariable UUID plantId) {
+
+        if (user == null) {
+            return ResponseEntity.status(401).body("User not authenticated");
+        }
 
         try {
             // Проверяем, что растение принадлежит пользователю

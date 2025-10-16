@@ -68,20 +68,26 @@ public class SecurityConfig {
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 String token = authHeader.substring(7);
 
-                if (jwtService.validateToken(token)) {
-                    String email = jwtService.getEmailFromToken(token);
-                    userService.findByEmail(email).ifPresent(user -> {
-                        UserDetails userDetails = org.springframework.security.core.userdetails.User
-                                .withUsername(user.getEmail())
-                                .password(user.getPassword())
-                                .authorities("USER")
-                                .build();
+                try {
+                    if (jwtService.validateToken(token)) {
+                        String email = jwtService.getEmailFromToken(token);
+                        userService.findByEmail(email).ifPresent(user -> {
+                            UserDetails userDetails = org.springframework.security.core.userdetails.User
+                                    .withUsername(user.getEmail())
+                                    .password(user.getPassword())
+                                    .authorities("USER")
+                                    .build();
 
-                        UsernamePasswordAuthenticationToken authentication =
-                                new UsernamePasswordAuthenticationToken(user, null, userDetails.getAuthorities());
+                            UsernamePasswordAuthenticationToken authentication =
+                                    new UsernamePasswordAuthenticationToken(user, null, userDetails.getAuthorities());
 
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
-                    });
+                            SecurityContextHolder.getContext().setAuthentication(authentication);
+                        });
+                    }
+                } catch (RuntimeException e) {
+                    // Если токен недействителен или истек, очищаем контекст безопасности
+                    SecurityContextHolder.clearContext();
+                    // Не прерываем цепочку фильтров, просто не устанавливаем аутентификацию
                 }
             }
 

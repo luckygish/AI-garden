@@ -80,14 +80,15 @@ public class UserService {
     }
 
     private void validatePasswordPolicy(String password) {
-        if (password == null || password.length() != 6) {
-            throw new RuntimeException("Password length must be exactly 6 characters");
+        if (password == null || password.length() < 8 || password.length() > 12) {
+            throw new RuntimeException("Password length must be between 8 and 12 characters");
         }
         // Базовые проверки:
-        boolean hasLetter = password.chars().anyMatch(Character::isLetter);
+        boolean hasLowerLetter = password.chars().anyMatch(Character::isLowerCase);
+        boolean hasUpperLetter = password.chars().anyMatch(Character::isUpperCase);
         boolean hasDigit = password.chars().anyMatch(Character::isDigit);
-        if (!hasLetter || !hasDigit) {
-            throw new RuntimeException("Password must contain letters and digits");
+        if (!hasLowerLetter || !hasUpperLetter || !hasDigit) {
+            throw new RuntimeException("Password must contain at least one uppercase letter, one lowercase letter and one digit");
         }
     }
 

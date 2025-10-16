@@ -8,7 +8,7 @@ public class PasswordResetConfirmRequest {
     private String token;
 
     @NotBlank
-    @Size(min = 5, max = 6)
+    @Size(min = 8, max = 12, message = "Пароль должен содержать от 8 до 12 символов")
     private String newPassword;
 
     public PasswordResetConfirmRequest() {}

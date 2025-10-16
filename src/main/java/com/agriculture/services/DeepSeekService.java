@@ -2,6 +2,8 @@ package com.agriculture.services;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.agriculture.dto.PlantVarietyDescriptionRequest;
+import com.agriculture.dto.PlantVarietyDescriptionResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
@@ -13,6 +15,8 @@ import jakarta.annotation.PostConstruct;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 
 @Service
 public class DeepSeekService {
@@ -337,5 +341,177 @@ public class DeepSeekService {
      */
     public boolean isApiAvailable() {
         return apiKey != null && !apiKey.trim().isEmpty();
+    }
+
+    /**
+     * Генерирует описание сорта растения через DeepSeek API
+     */
+    public PlantVarietyDescriptionResponse generateVarietyDescription(PlantVarietyDescriptionRequest request) {
+        String prompt = buildVarietyDescriptionPrompt(request);
+        
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("model", model);
+        requestBody.put("messages", List.of(
+            Map.of("role", "user", "content", prompt)
+        ));
+        requestBody.put("max_tokens", maxTokens);
+        requestBody.put("temperature", 0.7);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Authorization", "Bearer " + apiKey);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        try {
+            System.out.println("🌱 Генерация описания сорта: " + request.getCulture() + " - " + request.getVariety());
+            
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                apiUrl,
+                HttpMethod.POST,
+                entity,
+                new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                Map<String, Object> responseBody = response.getBody();
+                
+                if (responseBody.containsKey("choices")) {
+                    List<Map<String, Object>> choices = (List<Map<String, Object>>) responseBody.get("choices");
+                    if (!choices.isEmpty()) {
+                        Map<String, Object> firstChoice = choices.get(0);
+                        Map<String, Object> message = (Map<String, Object>) firstChoice.get("message");
+                        String content = (String) message.get("content");
+                        
+                        System.out.println("✅ Получен ответ от DeepSeek для описания сорта");
+                        return parseVarietyDescriptionResponse(content, request);
+                    }
+                }
+            }
+            
+            throw new RuntimeException("Неожиданный формат ответа от DeepSeek API");
+            
+        } catch (HttpClientErrorException e) {
+            System.err.println("❌ HTTP ошибка при генерации описания сорта: " + e.getStatusCode() + " - " + e.getResponseBodyAsString());
+            throw new RuntimeException("Ошибка API при генерации описания сорта: " + e.getStatusCode() + " - " + e.getMessage());
+        } catch (ResourceAccessException e) {
+            System.err.println("❌ Ошибка подключения при генерации описания сорта: " + e.getMessage());
+            throw new RuntimeException("Ошибка подключения к DeepSeek API при генерации описания сорта: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("❌ Неожиданная ошибка при генерации описания сорта: " + e.getMessage());
+            throw new RuntimeException("Ошибка при генерации описания сорта: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Создает промпт для генерации описания сорта
+     */
+    private String buildVarietyDescriptionPrompt(PlantVarietyDescriptionRequest request) {
+        return String.format("""
+            Ты — агроном-эксперт. Твоя задача — строго следовать инструкции и предоставить данные в формате JSON.
+            
+            ИНСТРУКЦИЯ:
+            1. Проанализируй предоставленный источник информации
+            2. Извлеки все данные по указанной культуре и сорту
+            3. Верни ответ ТОЛЬКО в формате JSON строго по указанной схеме
+            4. Не добавляй никакого пояснительного текста
+            
+            ПАРАМЕТРЫ ЗАПРОСА: в виде JSON 
+            {
+            "culture": "%s",
+            "variety": "%s", 
+            "description": "краткое описание сорта",
+            "ripening_period": "срок созревания",
+            "plant_height": "высота растения",
+            "fruit_weight": "масса плода",
+            "yield": "урожайность",
+            "disease_resistance": ["устойчивость к болезням"],
+            "growing_conditions": "условия выращивания"
+            }
+            - Общее описание растения (кратко, не более 250 символов)
+            - Источник: Источники должны быть приоритетно на русском языке и актуальны для территории Российской Федерации. Только книги, официальные документы, научные статьи, методички, регламенты.
+            
+            СХЕМА JSON:
+            {
+              "culture": "название культуры",
+              "variety": "название сорта",
+              "description": "краткое описание сорта",
+              "ripening_period": "срок созревания",
+              "plant_height": "высота растения",
+              "fruit_weight": "масса плода",
+              "yield": "урожайность",
+              "disease_resistance": ["устойчивость к болезням"],
+              "growing_conditions": "условия выращивания"
+            }
+            
+            ТРЕБОВАНИЯ:
+            - Описание должно быть кратким (не более 250 символов)
+            - Указывай только проверенные данные из авторитетных источников
+            - Источники должны быть приоритетно на русском языке
+            - Используй только книги, официальные документы, научные статьи, методички, регламенты
+            - В ответе не должно быть общих сайтов (Wikipedia) или форумов
+            
+            Начинай анализ.
+            """, request.getCulture(), request.getVariety());
+    }
+
+    /**
+     * Парсит ответ от DeepSeek для описания сорта
+     */
+    private PlantVarietyDescriptionResponse parseVarietyDescriptionResponse(String response, PlantVarietyDescriptionRequest request) {
+        try {
+            // Очищаем ответ от возможных markdown блоков
+            String cleanedResponse = response.trim();
+            if (cleanedResponse.startsWith("```json")) {
+                cleanedResponse = cleanedResponse.substring(7);
+            }
+            if (cleanedResponse.endsWith("```")) {
+                cleanedResponse = cleanedResponse.substring(0, cleanedResponse.length() - 3);
+            }
+            cleanedResponse = cleanedResponse.trim();
+
+            JsonNode jsonNode = objectMapper.readTree(cleanedResponse);
+            
+            PlantVarietyDescriptionResponse description = new PlantVarietyDescriptionResponse();
+            description.setCulture(jsonNode.path("culture").asText(request.getCulture()));
+            description.setVariety(jsonNode.path("variety").asText(request.getVariety()));
+            description.setDescription(jsonNode.path("description").asText("Описание сорта недоступно"));
+            description.setRipeningPeriod(jsonNode.path("ripening_period").asText("Не указан"));
+            description.setPlantHeight(jsonNode.path("plant_height").asText("Не указана"));
+            description.setFruitWeight(jsonNode.path("fruit_weight").asText("Не указана"));
+            description.setYield(jsonNode.path("yield").asText("Не указана"));
+            description.setGrowingConditions(jsonNode.path("growing_conditions").asText("Не указаны"));
+            
+            // Парсим массив disease_resistance
+            if (jsonNode.has("disease_resistance") && jsonNode.get("disease_resistance").isArray()) {
+                List<String> diseases = new ArrayList<>();
+                for (JsonNode disease : jsonNode.get("disease_resistance")) {
+                    diseases.add(disease.asText());
+                }
+                description.setDiseaseResistance(diseases);
+            } else {
+                description.setDiseaseResistance(List.of());
+            }
+            
+            return description;
+            
+        } catch (Exception e) {
+            System.err.println("❌ Ошибка парсинга JSON описания сорта: " + e.getMessage());
+            System.err.println("📄 Проблемный ответ: " + response);
+            
+            // Возвращаем базовое описание в случае ошибки
+            PlantVarietyDescriptionResponse fallback = new PlantVarietyDescriptionResponse();
+            fallback.setCulture(request.getCulture());
+            fallback.setVariety(request.getVariety());
+            fallback.setDescription("Описание сорта " + request.getVariety() + " для " + request.getCulture() + " будет доступно позже.");
+            fallback.setRipeningPeriod("Не указан");
+            fallback.setPlantHeight("Не указана");
+            fallback.setFruitWeight("Не указана");
+            fallback.setYield("Не указана");
+            fallback.setGrowingConditions("Не указаны");
+            fallback.setDiseaseResistance(List.of());
+            
+            return fallback;
+        }
     }
 }
